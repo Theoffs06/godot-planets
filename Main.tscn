@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3 uid="uid://cjq2x4ucdyvyq"]
 
-[ext_resource type="PackedScene" uid="uid://drh3xuwwqvxvq" path="res://Planet.tscn" id="1_5ew2n"]
 [ext_resource type="PackedScene" uid="uid://bsfpq2ib27t2w" path="res://Camera.tscn" id="2_c5hml"]
+[ext_resource type="PackedScene" uid="uid://kur46nkbuow5" path="res://TerrainPlanet.tscn" id="3_r0du0"]
 
 [sub_resource type="Environment" id="Environment_uu6xs"]
 background_mode = 1
@@ -20,7 +20,8 @@ light_color = Color(1, 1, 0.91764706, 1)
 light_energy = 2.0
 shadow_enabled = true
 
-[node name="Planet" parent="." instance=ExtResource("1_5ew2n")]
-
 [node name="Camera" parent="." instance=ExtResource("2_c5hml")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 13.229)
+
+[node name="TerrainPlanet" parent="." instance=ExtResource("3_r0du0")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.48774624, 0, 0.7869568)
