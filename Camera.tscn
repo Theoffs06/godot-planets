@@ -1,10 +1,16 @@
-[gd_scene load_steps=2 format=3 uid="uid://bsfpq2ib27t2w"]
+[gd_scene load_steps=3 format=3 uid="uid://bsfpq2ib27t2w"]
 
 [ext_resource type="Script" uid="uid://bakm3nh1xvm44" path="res://Camera.cs" id="1_gktoe"]
 
-[node name="Camera" type="Node3D"]
+[sub_resource type="SphereShape3D" id="SphereShape3D_e6e23"]
+
+[node name="Camera" type="CharacterBody3D"]
 script = ExtResource("1_gktoe")
 
 [node name="Camera3D" type="Camera3D" parent="."]
 fov = 45.0
 near = 0.1
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(0.385, 0, 0, 0, 0.385, 0, 0, 0, 0.385, 0, 0, 0)
+shape = SubResource("SphereShape3D_e6e23")

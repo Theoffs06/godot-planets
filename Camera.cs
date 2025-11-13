@@ -1,7 +1,7 @@
 using Godot;
 using System;
 
-public partial class Camera : Node3D
+public partial class Camera : CharacterBody3D
 {
 	[Export] public float MoveSpeed = 10.0f;
 	[Export] public float MouseSensitivity = 0.003f;
@@ -17,9 +17,6 @@ public partial class Camera : Node3D
 		_camera = GetNode<Camera3D>("Camera3D");
 		
 		Input.MouseMode = Input.MouseModeEnum.Captured;
-		
-		GD.Print("Camera initialized with WASD + Mouse controls");
-		GD.Print("Press ESC to release mouse");
 	}
 
 	public override void _Input(InputEvent @event)
@@ -47,7 +44,7 @@ public partial class Camera : Node3D
 		}
 	}
 
-	public override void _Process(double delta)
+	public override void _PhysicsProcess(double delta)
 	{
 		Vector3 velocity = Vector3.Zero;
 		
@@ -69,6 +66,8 @@ public partial class Camera : Node3D
 			velocity = velocity.Normalized();
 		}
 		
-		Position += velocity * MoveSpeed * (float)delta;
+		// Use CharacterBody3D's velocity property and MoveAndSlide for collision handling
+		Velocity = velocity * MoveSpeed;
+		MoveAndSlide();
 	}
 }
