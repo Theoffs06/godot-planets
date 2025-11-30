@@ -3,6 +3,7 @@ using System;
 
 public partial class TerrainPlanet : Planet
 {
+	static readonly string ResPath = "res://planets/example_terrain/";
 	[Export] public float PlanetRadius = 50.0f;
 	[Export] public float GravityStrength = 9.8f;
 	[Export] public float HeightScale = 20.0f;
@@ -36,12 +37,7 @@ public partial class TerrainPlanet : Planet
 
 	public override void _Ready()
 	{
-		GD.Print("TerrainPlanet initializing...");
-
-		// Create the terrain texture generation pipeline
 		CreateTerrainTexture();
-
-		// Wait for viewport to render, then create meshes
 		WaitForViewportAndCreateMeshes();
 	}
 	
@@ -62,21 +58,14 @@ public partial class TerrainPlanet : Planet
 
 	public override void _Process(double delta)
 	{
-		// Handle regeneration request in editor
 		if (Engine.IsEditorHint() && _regenerateRequested)
 		{
 			_regenerateRequested = false;
 			RegeneratePlanet();
 		}
-
-		// // Only rotate when running the game, not in editor
-		// if (!Engine.IsEditorHint())
-		// {
-		// 	RotateY(RotationSpeed * (float)delta);
-		// }
 	}
 
-	private async void RegeneratePlanet()
+	async void RegeneratePlanet()
 	{
 		GD.Print("Regenerating planet...");
 
@@ -96,9 +85,8 @@ public partial class TerrainPlanet : Planet
 		WaitForViewportAndCreateMeshes();
 	}
 
-	private void CreateTerrainTexture()
+	void CreateTerrainTexture()
 	{
-		// Create SubViewport for terrain texture generation
 		_terrainViewport = new SubViewport();
 		_terrainViewport.Size = new Vector2I(TextureWidth, TextureHeight);
 		_terrainViewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Once;
@@ -106,12 +94,10 @@ public partial class TerrainPlanet : Planet
 		_terrainViewport.UseHdr2D = true;
 		AddChild(_terrainViewport);
 
-		// Create ColorRect with shader material
 		_terrainColorRect = new ColorRect();
 		_terrainColorRect.Size = new Vector2(TextureWidth, TextureHeight);
 
-		// Load terrain generation shader
-		var terrainShader = GD.Load<Shader>("res://shaders/terrain_generation.gdshader");
+		var terrainShader = GD.Load<Shader>(ResPath + "terrain_generation.gdshader");
 		var terrainMaterial = new ShaderMaterial();
 		terrainMaterial.Shader = terrainShader;
 		terrainMaterial.SetShaderParameter("height_scale", HeightScale);
@@ -119,27 +105,17 @@ public partial class TerrainPlanet : Planet
 		_terrainColorRect.Material = terrainMaterial;
 		_terrainViewport.AddChild(_terrainColorRect);
 
-		// Get the viewport texture
 		_terrainTexture = _terrainViewport.GetTexture();
 	}
 
-	private void CreateMeshes()
+	void CreateMeshes()
 	{
-		GD.Print("Creating meshes...");
-
-		// Extract heightmap data from viewport texture
 		_heightmapImage = _terrainTexture.GetImage();
-
-		// Create visual mesh
 		CreateVisualMesh();
-
-		// Create collision mesh
 		CreateCollisionMesh();
-
-		GD.Print("TerrainPlanet initialization complete!");
 	}
 
-	private void CreateVisualMesh()
+	void CreateVisualMesh()
 	{
 		_visualMesh = new MeshInstance3D();
 
@@ -154,7 +130,7 @@ public partial class TerrainPlanet : Planet
 		_visualMesh.ExtraCullMargin = HeightScale;
 
 		// Apply visual shader
-		var visualShader = GD.Load<Shader>("res://shaders/planet_visual.gdshader");
+		var visualShader = GD.Load<Shader>(ResPath + "planet_visual.gdshader");
 		var visualMaterial = new ShaderMaterial();
 		visualMaterial.Shader = visualShader;
 		visualMaterial.SetShaderParameter("terrain_texture", _terrainTexture);
@@ -165,7 +141,7 @@ public partial class TerrainPlanet : Planet
 		AddChild(_visualMesh);
 	}
 
-	private void CreateCollisionMesh()
+	void CreateCollisionMesh()
 	{
 		_collisionBody = new StaticBody3D();
 
@@ -321,10 +297,6 @@ public partial class TerrainPlanet : Planet
 		return height * HeightScale;
 	}
 
-	/// <summary>
-	/// Get the gravitational force at a given position in world space.
-	/// For TerrainPlanet, this is simple radial gravity from the planet center.
-	/// </summary>
 	public override Vector3 GetForce(Vector3 position)
 	{
 		Vector3 toPlanet = GlobalPosition - position;
