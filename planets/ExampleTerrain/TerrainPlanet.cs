@@ -34,6 +34,7 @@ public partial class TerrainPlanet : Planet
 	private Image _heightmapImage;
 	private MeshInstance3D _visualMesh;
 	private StaticBody3D _collisionBody;
+	private Node3D _propsContainer;
 
 	public override void _Ready()
 	{
@@ -113,6 +114,7 @@ public partial class TerrainPlanet : Planet
 		_heightmapImage = _terrainTexture.GetImage();
 		CreateVisualMesh();
 		CreateCollisionMesh();
+		SpawnTrees();
 	}
 
 	void CreateVisualMesh()
@@ -249,52 +251,58 @@ public partial class TerrainPlanet : Planet
 		return pixel.R * HeightScale;
 	}
 
-	/// <summary>
-	/// Query height at a specific latitude and longitude on the planet surface.
-	/// </summary>
-	/// <param name="latitude">Latitude in radians (-PI/2 to PI/2)</param>
-	/// <param name="longitude">Longitude in radians (-PI to PI)</param>
-	/// <returns>Height value scaled by HeightScale</returns>
-	public float GetHeightAtLatLong(float latitude, float longitude)
+	private Vector3 GetNormalAtUV(float u, float v)
 	{
 		if (_heightmapImage == null)
-		{
-			GD.PrintErr("Heightmap image not yet generated!");
-			return 0.0f;
-		}
+			return Vector3.Up;
 
-		// Convert lat-long to UV coordinates
-		float u = longitude / (2.0f * Mathf.Pi) + 0.5f;
-		float v = latitude / Mathf.Pi + 0.5f;
+		// Sample height at the point and nearby points
+		float epsilon = 1.0f / _heightmapImage.GetWidth();
 
-		// Ensure UV coordinates wrap correctly
-		u = u % 1.0f;
-		if (u < 0) u += 1.0f;
-		v = Mathf.Clamp(v, 0.0f, 1.0f);
+		float h_center = SampleHeightFromUV(u, v);
+		float h_right = SampleHeightFromUV(u + epsilon, v);
+		float h_up = SampleHeightFromUV(u, v + epsilon);
 
-		// Convert to pixel coordinates with bilinear sampling
-		float fx = u * (_heightmapImage.GetWidth() - 1);
-		float fy = v * (_heightmapImage.GetHeight() - 1);
+		// Calculate sphere position at center
+		float theta = v * Mathf.Pi;
+		float phi = u * Mathf.Pi * 2.0f;
 
-		int x0 = (int)Mathf.Floor(fx);
-		int y0 = (int)Mathf.Floor(fy);
-		int x1 = (x0 + 1) % _heightmapImage.GetWidth();
-		int y1 = Mathf.Min(y0 + 1, _heightmapImage.GetHeight() - 1);
+		Vector3 centerUnitPos = new Vector3(
+			Mathf.Sin(phi) * Mathf.Sin(theta),
+			-Mathf.Cos(theta),
+			Mathf.Cos(phi) * Mathf.Sin(theta)
+		);
 
-		float tx = fx - x0;
-		float ty = fy - y0;
+		// Calculate positions for tangent vectors
+		float theta_right = v * Mathf.Pi;
+		float phi_right = (u + epsilon) * Mathf.Pi * 2.0f;
+		Vector3 rightUnitPos = new Vector3(
+			Mathf.Sin(phi_right) * Mathf.Sin(theta_right),
+			-Mathf.Cos(theta_right),
+			Mathf.Cos(phi_right) * Mathf.Sin(theta_right)
+		);
 
-		// Bilinear interpolation
-		float h00 = _heightmapImage.GetPixel(x0, y0).R;
-		float h10 = _heightmapImage.GetPixel(x1, y0).R;
-		float h01 = _heightmapImage.GetPixel(x0, y1).R;
-		float h11 = _heightmapImage.GetPixel(x1, y1).R;
+		float theta_up = (v + epsilon) * Mathf.Pi;
+		float phi_up = u * Mathf.Pi * 2.0f;
+		Vector3 upUnitPos = new Vector3(
+			Mathf.Sin(phi_up) * Mathf.Sin(theta_up),
+			-Mathf.Cos(theta_up),
+			Mathf.Cos(phi_up) * Mathf.Sin(theta_up)
+		);
 
-		float h0 = Mathf.Lerp(h00, h10, tx);
-		float h1 = Mathf.Lerp(h01, h11, tx);
-		float height = Mathf.Lerp(h0, h1, ty);
+		// Apply height displacement
+		Vector3 centerPos = centerUnitPos * (PlanetRadius + h_center);
+		Vector3 rightPos = rightUnitPos * (PlanetRadius + h_right);
+		Vector3 upPos = upUnitPos * (PlanetRadius + h_up);
 
-		return height * HeightScale;
+		// Calculate tangent vectors
+		Vector3 tangentU = (rightPos - centerPos).Normalized();
+		Vector3 tangentV = (upPos - centerPos).Normalized();
+
+		// Calculate normal using cross product
+		Vector3 normal = tangentU.Cross(tangentV).Normalized();
+
+		return normal;
 	}
 
 	public override Vector3 GetForce(Vector3 position)
@@ -306,5 +314,92 @@ public partial class TerrainPlanet : Planet
 			return Vector3.Zero;
 
 		return toPlanet.Normalized() * GravityStrength;
+	}
+
+	void SpawnTrees()
+	{
+		if (_heightmapImage == null)
+		{
+			GD.PrintErr("Cannot spawn trees: heightmap not available");
+			return;
+		}
+
+		// Load the 4 tree scenes
+		PackedScene[] treeScenes = new PackedScene[]
+		{
+			GD.Load<PackedScene>("res://Props/Tree01.tscn"),
+			GD.Load<PackedScene>("res://Props/Tree02.tscn"),
+			GD.Load<PackedScene>("res://Props/Tree03.tscn"),
+			GD.Load<PackedScene>("res://Props/Tree04.tscn")
+		};
+
+		// Create container for props
+		_propsContainer = new Node3D();
+		_propsContainer.Name = "Props";
+		AddChild(_propsContainer);
+
+		Random random = new Random();
+		int treesSpawned = 0;
+		int count = 300;
+		int attempts = 0;
+
+		while (treesSpawned < 300 && attempts < count * 10)
+		{
+			attempts++;
+
+			// Generate random UV coordinates
+			float u = (float)random.NextDouble();
+			float v = (float)random.NextDouble();
+
+			// Sample height at this location
+			float height = SampleHeightFromUV(u, v);
+			GD.Print($"height {height}");
+
+			// Only spawn if height is negative
+			if (height < HeightScale/2)
+			{
+				// Calculate sphere position
+				float theta = v * Mathf.Pi;
+				float phi = u * Mathf.Pi * 2.0f;
+
+				Vector3 unitPos = new Vector3(
+					Mathf.Sin(phi) * Mathf.Sin(theta),
+					-Mathf.Cos(theta),
+					Mathf.Cos(phi) * Mathf.Sin(theta)
+				);
+
+				Vector3 position = unitPos * (PlanetRadius + height);
+
+				// Get normal at this location
+				Vector3 normal = GetNormalAtUV(u, v);
+
+				// Pick a random tree scene
+				PackedScene treeScene = treeScenes[random.Next(treeScenes.Length)];
+				Node3D tree = treeScene.Instantiate<Node3D>();
+				_propsContainer.AddChild(tree);
+
+				// Set position
+				tree.GlobalPosition = position;
+
+				// Orient the tree to align with the terrain normal
+				// The tree's up direction should match the terrain normal
+				Vector3 up = normal;
+				Vector3 forward = up.Cross(Vector3.Right);
+				if (forward.LengthSquared() < 0.001f)
+				{
+					forward = up.Cross(Vector3.Forward);
+				}
+				forward = forward.Normalized();
+				Vector3 right = forward.Cross(up).Normalized();
+
+				// Create basis from the orthogonal vectors
+				Basis basis = new Basis(right, up, -forward);
+				tree.GlobalBasis = basis;
+
+				treesSpawned++;
+			}
+		}
+
+		GD.Print($"Spawned {treesSpawned} trees after {attempts} attempts");
 	}
 }
