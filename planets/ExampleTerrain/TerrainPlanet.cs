@@ -1,9 +1,14 @@
-using Godot;
 using System;
+using Godot;
+using planets.common;
 
-public partial class TerrainPlanet : Planet
-{
-	static readonly string ResPath = "res://Planets/ExampleTerrain/";
+namespace planets.planets.ExampleTerrain;
+
+public partial class TerrainPlanet : Planet {
+	private const string ResPath = "res://Planets/ExampleTerrain/";
+	
+	[Export] public int Seed = 50;
+	[Export] public bool AutoSeed = true;
 	[Export] public float PlanetRadius = 50.0f;
 	[Export] public float GravityStrength = 9.8f;
 	[Export] public float HeightScale = 10.0f;
@@ -11,20 +16,17 @@ public partial class TerrainPlanet : Planet
 	[Export] public int TextureHeight = 1024;
 	[Export] public int VisualSubdivisionsRadial = 256;
 	[Export] public int VisualSubdivisionsHeight = 512;
-	[Export] public bool ShowCollisionMesh = false;
-	private bool _regenerateRequested = false;
+	[Export] public bool ShowCollisionMesh;
+	
+	private bool _regenerateRequested;
 
 	[Export]
-	public bool Regenerate
-	{
+	public bool Regenerate {
 		get => false;
-		set
-		{
-			if (value)
-			{
-				_regenerateRequested = true;
-				NotifyPropertyListChanged();
-			}
+		set {
+			if (!value) return;
+			_regenerateRequested = true;
+			NotifyPropertyListChanged();
 		}
 	}
 
@@ -36,14 +38,12 @@ public partial class TerrainPlanet : Planet
 	private StaticBody3D _collisionBody;
 	private Node3D _propsContainer;
 
-	public override void _Ready()
-	{
+	public override void _Ready() {
 		CreateTerrainTexture();
 		WaitForViewportAndCreateMeshes();
 	}
 	
-	private async void WaitForViewportAndCreateMeshes()
-	{
+	private async void WaitForViewportAndCreateMeshes() {
 		// Wait for the next frame
 		await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
 		
@@ -57,22 +57,18 @@ public partial class TerrainPlanet : Planet
 		CreateMeshes();
 	}
 
-	public override void _Process(double delta)
-	{
-		if (Engine.IsEditorHint() && _regenerateRequested)
-		{
+	public override void _Process(double delta) {
+		if (Engine.IsEditorHint() && _regenerateRequested) {
 			_regenerateRequested = false;
 			RegeneratePlanet();
 		}
 	}
 
-	async void RegeneratePlanet()
-	{
+	private async void RegeneratePlanet() {
 		GD.Print("Regenerating planet...");
 
 		// Clean up existing children
-		foreach (Node child in GetChildren())
-		{
+		foreach (var child in GetChildren()) {
 			child.QueueFree();
 		}
 
@@ -86,8 +82,7 @@ public partial class TerrainPlanet : Planet
 		WaitForViewportAndCreateMeshes();
 	}
 
-	void CreateTerrainTexture()
-	{
+	private void CreateTerrainTexture() {
 		_terrainViewport = new SubViewport();
 		_terrainViewport.Size = new Vector2I(TextureWidth, TextureHeight);
 		_terrainViewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Once;
@@ -109,16 +104,14 @@ public partial class TerrainPlanet : Planet
 		_terrainTexture = _terrainViewport.GetTexture();
 	}
 
-	void CreateMeshes()
-	{
+	private void CreateMeshes() {
 		_heightmapImage = _terrainTexture.GetImage();
 		CreateVisualMesh();
 		CreateCollisionMesh();
 		SpawnTrees();
 	}
 
-	void CreateVisualMesh()
-	{
+	private void CreateVisualMesh() {
 		_visualMesh = new MeshInstance3D();
 
 		// Create sphere mesh
@@ -143,50 +136,45 @@ public partial class TerrainPlanet : Planet
 		AddChild(_visualMesh);
 	}
 
-	void CreateCollisionMesh()
-	{
+	private void CreateCollisionMesh() {
 		_collisionBody = new StaticBody3D();
 
 		// Generate collision mesh data
 		var surfaceTool = new SurfaceTool();
 		surfaceTool.Begin(Mesh.PrimitiveType.Triangles);
 
-		int radialSegments = VisualSubdivisionsRadial >> 1;
-		int heightSegments = VisualSubdivisionsHeight >> 1;
+		var radialSegments = VisualSubdivisionsRadial >> 1;
+		var heightSegments = VisualSubdivisionsHeight >> 1;
 
 		// Generate vertices with height displacement
-		for (int y = 0; y <= heightSegments; y++)
-		{
-			float v = (float)y / heightSegments;
-			float theta = v * Mathf.Pi;
+		for (var y = 0; y <= heightSegments; y++) {
+			var v = (float) y / heightSegments;
+			var theta = v * Mathf.Pi;
 
-			for (int x = 0; x <= radialSegments; x++)
-			{
-				float u = (float)x / radialSegments;
-				float phi = u * Mathf.Pi * 2.0f;
+			for (var x = 0; x <= radialSegments; x++) {
+				var u = (float) x / radialSegments;
+				var phi = u * Mathf.Pi * 2.0f;
 
 				// Calculate sphere position
-				Vector3 unitPos = new Vector3(
+				var unitPos = new Vector3(
 					Mathf.Sin(phi) * Mathf.Sin(theta),
 					-Mathf.Cos(theta),
 					Mathf.Cos(phi) * Mathf.Sin(theta)
 				);
 
 				// Sample height from texture
-				float height = SampleHeightFromUV(u, v);
-				Vector3 vertexPos = unitPos * (PlanetRadius + height);
+				var height = SampleHeightFromUV(u, v);
+				var vertexPos = unitPos * (PlanetRadius + height);
 
 				surfaceTool.AddVertex(vertexPos);
 			}
 		}
 
 		// Generate indices for triangles
-		for (int y = 0; y < heightSegments; y++)
-		{
-			for (int x = 0; x < radialSegments; x++)
-			{
-				int current = y * (radialSegments + 1) + x;
-				int next = current + radialSegments + 1;
+		for (var y = 0; y < heightSegments; y++) {
+			for (var x = 0; x < radialSegments; x++) {
+				var current = y * (radialSegments + 1) + x;
+				var next = current + radialSegments + 1;
 
 				// First triangle
 				surfaceTool.AddIndex(current);
@@ -203,15 +191,14 @@ public partial class TerrainPlanet : Planet
 		surfaceTool.GenerateNormals();
 		var collisionMesh = surfaceTool.Commit();
 
-		// Create collision shape
+		// Create a collision shape
 		var collisionShape = new CollisionShape3D();
 		collisionShape.Shape = collisionMesh.CreateTrimeshShape();
 
 		_collisionBody.AddChild(collisionShape);
 		
 		// Add debug visualization if enabled
-		if (ShowCollisionMesh)
-		{
+		if (ShowCollisionMesh) {
 			var debugMesh = new MeshInstance3D();
 			debugMesh.Mesh = collisionMesh;
 			
@@ -229,149 +216,140 @@ public partial class TerrainPlanet : Planet
 		AddChild(_collisionBody);
 	}
 
-	private float SampleHeightFromUV(float u, float v)
-	{
-		if (_heightmapImage == null)
-			return 0.0f;
+	private float SampleHeightFromUV(float u, float v) {
+		if (_heightmapImage == null) return 0.0f;
 
 		// Wrap U coordinate
-		u = u % 1.0f;
+		u %= 1.0f;
 		if (u < 0) u += 1.0f;
 
 		// Clamp V coordinate
 		v = Mathf.Clamp(v, 0.0f, 1.0f);
 
 		// Convert to pixel coordinates
-		int px = (int)(u * _heightmapImage.GetWidth()) % _heightmapImage.GetWidth();
-		int py = (int)(v * _heightmapImage.GetHeight());
+		var px = (int) (u * _heightmapImage.GetWidth()) % _heightmapImage.GetWidth();
+		var py = (int) (v * _heightmapImage.GetHeight());
 		py = Mathf.Clamp(py, 0, _heightmapImage.GetHeight() - 1);
 
 		// Sample height (R channel)
-		Color pixel = _heightmapImage.GetPixel(px, py);
+		var pixel = _heightmapImage.GetPixel(px, py);
 		return pixel.R * HeightScale;
 	}
 
-	private Vector3 GetNormalAtUV(float u, float v)
-	{
-		if (_heightmapImage == null)
-			return Vector3.Up;
+	private Vector3 GetNormalAtUV(float u, float v) {
+		if (_heightmapImage == null) return Vector3.Up;
 
 		// Sample height at the point and nearby points
-		float epsilon = 1.0f / _heightmapImage.GetWidth();
+		var epsilon = 1.0f / _heightmapImage.GetWidth();
 
-		float h_center = SampleHeightFromUV(u, v);
-		float h_right = SampleHeightFromUV(u + epsilon, v);
-		float h_up = SampleHeightFromUV(u, v + epsilon);
+		var hCenter = SampleHeightFromUV(u, v);
+		var hRight = SampleHeightFromUV(u + epsilon, v);
+		var hUp = SampleHeightFromUV(u, v + epsilon);
 
 		// Calculate sphere position at center
-		float theta = v * Mathf.Pi;
-		float phi = u * Mathf.Pi * 2.0f;
+		var theta = v * Mathf.Pi;
+		var phi = u * Mathf.Pi * 2.0f;
 
-		Vector3 centerUnitPos = new Vector3(
+		var centerUnitPos = new Vector3(
 			Mathf.Sin(phi) * Mathf.Sin(theta),
 			-Mathf.Cos(theta),
 			Mathf.Cos(phi) * Mathf.Sin(theta)
 		);
 
 		// Calculate positions for tangent vectors
-		float theta_right = v * Mathf.Pi;
-		float phi_right = (u + epsilon) * Mathf.Pi * 2.0f;
-		Vector3 rightUnitPos = new Vector3(
-			Mathf.Sin(phi_right) * Mathf.Sin(theta_right),
-			-Mathf.Cos(theta_right),
-			Mathf.Cos(phi_right) * Mathf.Sin(theta_right)
+		var thetaRight = v * Mathf.Pi;
+		var phiRight = (u + epsilon) * Mathf.Pi * 2.0f;
+		var rightUnitPos = new Vector3(
+			Mathf.Sin(phiRight) * Mathf.Sin(thetaRight),
+			-Mathf.Cos(thetaRight),
+			Mathf.Cos(phiRight) * Mathf.Sin(thetaRight)
 		);
 
-		float theta_up = (v + epsilon) * Mathf.Pi;
-		float phi_up = u * Mathf.Pi * 2.0f;
-		Vector3 upUnitPos = new Vector3(
-			Mathf.Sin(phi_up) * Mathf.Sin(theta_up),
-			-Mathf.Cos(theta_up),
-			Mathf.Cos(phi_up) * Mathf.Sin(theta_up)
+		var thetaUp = (v + epsilon) * Mathf.Pi;
+		var phiUp = u * Mathf.Pi * 2.0f;
+		var upUnitPos = new Vector3(
+			Mathf.Sin(phiUp) * Mathf.Sin(thetaUp),
+			-Mathf.Cos(thetaUp),
+			Mathf.Cos(phiUp) * Mathf.Sin(thetaUp)
 		);
 
 		// Apply height displacement
-		Vector3 centerPos = centerUnitPos * (PlanetRadius + h_center);
-		Vector3 rightPos = rightUnitPos * (PlanetRadius + h_right);
-		Vector3 upPos = upUnitPos * (PlanetRadius + h_up);
+		var centerPos = centerUnitPos * (PlanetRadius + hCenter);
+		var rightPos = rightUnitPos * (PlanetRadius + hRight);
+		var upPos = upUnitPos * (PlanetRadius + hUp);
 
 		// Calculate tangent vectors
-		Vector3 tangentU = (rightPos - centerPos).Normalized();
-		Vector3 tangentV = (upPos - centerPos).Normalized();
+		var tangentU = (rightPos - centerPos).Normalized();
+		var tangentV = (upPos - centerPos).Normalized();
 
 		return tangentU.Cross(tangentV).Normalized();
 	}
 
-	public override Vector3 GetForce(Vector3 position)
-	{
-		Vector3 toPlanet = GlobalPosition - position;
-		float distance = toPlanet.Length();
+	public override Vector3 GetForce(Vector3 position) {
+		var toPlanet = GlobalPosition - position;
+		var distance = toPlanet.Length();
 
-		if (distance < 0.001f)
-			return Vector3.Zero;
-
+		if (distance < 0.001f) return Vector3.Zero;
 		return toPlanet.Normalized() * GravityStrength;
 	}
 
-	void SpawnTrees()
-	{
-		if (_heightmapImage == null)
-		{
+	private void SpawnTrees() {
+		if (_heightmapImage == null) {
 			GD.PrintErr("Cannot spawn trees: heightmap not available");
 			return;
 		}
 
 		// Load the 4 tree scenes
-		PackedScene[] treeScenes = new PackedScene[]
-		{
+		PackedScene[] treeScenes = [
 			GD.Load<PackedScene>("res://Props/Tree01.tscn"),
 			GD.Load<PackedScene>("res://Props/Tree02.tscn"),
 			GD.Load<PackedScene>("res://Props/Tree03.tscn"),
 			GD.Load<PackedScene>("res://Props/Tree04.tscn")
-		};
+		];
 
 		// Create container for props
 		_propsContainer = new Node3D();
 		_propsContainer.Name = "Props";
 		AddChild(_propsContainer);
 
-		Random random = new Random();
-		int treesSpawned = 0;
-		int count = 300;
-		int attempts = 0;
+		const int count = 300;
+		
+		if (AutoSeed) Seed = (int) DateTime.Now.Ticks;
+		var random = new Random(Seed);
+		
+		var treesSpawned = 0;
+		var attempts = 0;
 
-		while (treesSpawned < 300 && attempts < count * 10)
-		{
+		while (treesSpawned < 300 && attempts < count * 10) {
 			attempts++;
 
 			// Generate random UV coordinates
-			float u = (float)random.NextDouble();
-			float v = (float)random.NextDouble();
+			var u = (float) random.NextDouble();
+			var v = (float) random.NextDouble();
 
 			// Sample height at this location
-			float height = SampleHeightFromUV(u, v);
+			var height = SampleHeightFromUV(u, v);
 
 			// Only spawn if height is negative
-			if (height < HeightScale/2)
-			{
+			if (height < HeightScale / 2) {
 				// Calculate sphere position
-				float theta = v * Mathf.Pi;
-				float phi = u * Mathf.Pi * 2.0f;
+				var theta = v * Mathf.Pi;
+				var phi = u * Mathf.Pi * 2.0f;
 
-				Vector3 unitPos = new Vector3(
+				var unitPos = new Vector3(
 					Mathf.Sin(phi) * Mathf.Sin(theta),
 					-Mathf.Cos(theta),
 					Mathf.Cos(phi) * Mathf.Sin(theta)
 				);
 
-				Vector3 position = unitPos * (PlanetRadius + height);
+				var position = unitPos * (PlanetRadius + height);
 
 				// Get normal at this location
-				Vector3 normal = GetNormalAtUV(u, v);
+				var normal = GetNormalAtUV(u, v);
 
 				// Pick a random tree scene
-				PackedScene treeScene = treeScenes[random.Next(treeScenes.Length)];
-				Node3D tree = treeScene.Instantiate<Node3D>();
+				var treeScene = treeScenes[random.Next(treeScenes.Length)];
+				var tree = treeScene.Instantiate<Node3D>();
 				_propsContainer.AddChild(tree);
 
 				// Set position
@@ -379,17 +357,16 @@ public partial class TerrainPlanet : Planet
 
 				// Orient the tree to align with the terrain normal
 				// The tree's up direction should match the terrain normal
-				Vector3 up = normal;
-				Vector3 forward = up.Cross(Vector3.Right);
-				if (forward.LengthSquared() < 0.001f)
-				{
-					forward = up.Cross(Vector3.Forward);
+				var forward = normal.Cross(Vector3.Right);
+				if (forward.LengthSquared() < 0.001f) {
+					forward = normal.Cross(Vector3.Forward);
 				}
+				
 				forward = forward.Normalized();
-				Vector3 right = forward.Cross(up).Normalized();
+				var right = forward.Cross(normal).Normalized();
 
 				// Create basis from the orthogonal vectors
-				Basis basis = new Basis(right, up, -forward);
+				var basis = new Basis(right, normal, -forward);
 				tree.GlobalBasis = basis;
 
 				treesSpawned++;

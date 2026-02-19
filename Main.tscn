@@ -1,7 +1,7 @@
-[gd_scene load_steps=4 format=3 uid="uid://cjq2x4ucdyvyq"]
+[gd_scene format=3 uid="uid://cjq2x4ucdyvyq"]
 
 [ext_resource type="PackedScene" uid="uid://bsfpq2ib27t2w" path="res://common/Camera.tscn" id="2_c5hml"]
-[ext_resource type="PackedScene" uid="uid://kur46nkbuow5" path="res://Planets/ExampleTerrain/TerrainPlanet.tscn" id="3_r0du0"]
+[ext_resource type="PackedScene" uid="uid://kur46nkbuow5" path="res://planets/ExampleTerrain/TerrainPlanet.tscn" id="3_r0du0"]
 
 [sub_resource type="Environment" id="Environment_uu6xs"]
 background_mode = 1
@@ -10,12 +10,12 @@ ambient_light_source = 2
 ambient_light_color = Color(0.31753132, 0.3583657, 0.6605058, 1)
 ambient_light_energy = 0.2
 
-[node name="Main" type="Node3D"]
+[node name="Main" type="Node3D" unique_id=243365384]
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=564180954]
 environment = SubResource("Environment_uu6xs")
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=100096902]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 16, 0, 0)
 light_color = Color(1, 1, 0.91764706, 1)
 light_energy = 2.0
@@ -24,7 +24,7 @@ directional_shadow_blend_splits = true
 directional_shadow_fade_start = 0.5
 directional_shadow_max_distance = 500.0
 
-[node name="Camera" parent="." instance=ExtResource("2_c5hml")]
+[node name="Camera" parent="." unique_id=142798194 instance=ExtResource("2_c5hml")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 100)
 
-[node name="TerrainPlanet" parent="." instance=ExtResource("3_r0du0")]
+[node name="TerrainPlanet" parent="." unique_id=2107058169 instance=ExtResource("3_r0du0")]

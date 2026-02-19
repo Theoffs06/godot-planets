@@ -1,18 +1,16 @@
 using Godot;
-using System;
 
-public partial class Planet : Node3D
-{
+namespace planets.common;
+
+public partial class Planet : Node3D {
 	[Export] public float RotationSpeed = 0.5f;
 
-	public override void _Ready()
-	{
+	public override void _Ready() {
 		GD.Print("Planet initialized");
 	}
 
-	public override void _Process(double delta)
-	{
-		RotateY(RotationSpeed * (float)delta);
+	public override void _Process(double delta) {
+		RotateY(RotationSpeed * (float) delta);
 	}
 
 	/// <summary>
@@ -21,15 +19,12 @@ public partial class Planet : Node3D
 	/// </summary>
 	/// <param name="position">World space position to query</param>
 	/// <returns>Force vector (direction and magnitude)</returns>
-	public virtual Vector3 GetForce(Vector3 position)
-	{
+	public virtual Vector3 GetForce(Vector3 position) {
 		// Default implementation: simple radial gravity towards planet center
-		Vector3 toPlanet = GlobalPosition - position;
-		float distance = toPlanet.Length();
+		var toPlanet = GlobalPosition - position;
+		var distance = toPlanet.Length();
 
-		if (distance < 0.001f)
-			return Vector3.Zero;
-
+		if (distance < 0.001f) return Vector3.Zero;
 		return toPlanet.Normalized() * 9.8f; // Standard gravity magnitude
 	}
 }
